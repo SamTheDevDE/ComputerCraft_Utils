@@ -1,4 +1,0 @@
-pcn.lua
-full_reinstall
-pcn_installer
-lib/monitor.lua
