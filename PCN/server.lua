@@ -1,8 +1,12 @@
 -- server.lua
+local modem = peripheral.find("modem")
+if not modem then
+    error("No modem found.")
+end
 
-local net = require("pcn_net")
+local BROADCAST_CHANNEL = 100
+modem.open(BROADCAST_CHANNEL) -- Open broadcast channel
 
--- Load config
 local config = {}
 if fs.exists("config.cfg") then
     for line in io.lines("config.cfg") do
@@ -15,88 +19,54 @@ else
     error("Missing config.cfg")
 end
 
-local serverId = tonumber(config.serverId)
-local password = config.password
-local authKey = config.authKey
-
--- Monitor detection
-local monitor = peripheral.find("monitor")
-if monitor then
-    monitor.setTextScale(0.5)
-    monitor.setBackgroundColor(colors.black)
-    monitor.clear()
-    monitor.setCursorPos(1, 1)
-end
-
--- Helper to write to screen + monitor
-local function writeLog(msg, color)
-    color = color or colors.white
-    term.setTextColor(color)
-    print(msg)
-    if monitor then
-        local x, y = monitor.getCursorPos()
-        monitor.setTextColor(color)
-        monitor.write(msg)
-        monitor.setCursorPos(1, y + 1)
+-- Util: XOR encryption
+local function xor(str, key)
+    local out = {}
+    for i = 1, #str do
+        local char = str:byte(i)
+        local k = key:byte((i - 1) % #key + 1)
+        out[i] = string.char(bit.bxor(char, k))
     end
-    term.setTextColor(colors.white)
+    return table.concat(out)
 end
 
--- Draw header
-local function drawHeader()
-    term.setTextColor(colors.cyan)
-    print("╔════════════════════════════════════╗")
-    print("║     🛰️ PCN Server - Channel " .. serverId .. "      ║")
-    print("╚════════════════════════════════════╝")
-    term.setTextColor(colors.white)
-    if monitor then
-        monitor.setTextColor(colors.cyan)
-        monitor.setCursorPos(1, 1)
-        monitor.write("╔════════════════════════════════════╗\n")
-        monitor.write("║     🛰️ PCN Server - Channel " .. serverId .. "      ║\n")
-        monitor.write("╚════════════════════════════════════╝\n")
-        monitor.setTextColor(colors.white)
-        monitor.setCursorPos(1, 4)
-    end
-end
-
--- Start
-os.setComputerLabel("PCN_Server_" .. tostring(serverId))
-drawHeader()
-writeLog("[INFO] Server started.", colors.lime)
-
--- Client state
-local clients = {}
-
--- Main loop
-while true do
-    local senderId, rawMsg = net.receive()
-    if senderId and rawMsg then
-        local cmd, payload = rawMsg:match("^(%S+)%s(.+)$")
-        if cmd == "AUTH" then
-            if payload == password then
-                clients[senderId] = true
-                net.send(senderId, "AUTH_OK")
-                writeLog("[AUTH] ✅ Client " .. senderId .. " authenticated.", colors.green)
-            else
-                net.send(senderId, "AUTH_FAIL")
-                writeLog("[AUTH] ❌ Client " .. senderId .. " failed auth.", colors.red)
-            end
-        elseif cmd == "MSG" then
-            if clients[senderId] then
-                writeLog("[MSG] <" .. senderId .. "> " .. payload, colors.yellow)
-                for otherId in pairs(clients) do
-                    if otherId ~= senderId then
-                        net.send(otherId, "MSG " .. senderId .. ": " .. payload)
-                    end
-                end
-            else
-                net.send(senderId, "ERROR Unauthorized")
-                writeLog("[WARN] Blocked unauthorized message from " .. senderId, colors.orange)
-            end
-        else
-            net.send(senderId, "ERROR InvalidCommand")
-            writeLog("[WARN] Unknown command from " .. senderId, colors.lightGray)
+-- Receive message with timeout
+local function receive(timeout)
+    local startTime = os.clock()
+    while true do
+        local event, side, channel, replyChannel, msg, dist = os.pullEvent("modem_message")
+        if os.clock() - startTime > timeout then
+            return nil, nil  -- Timeout reached
+        end
+        if channel == os.getComputerID() then
+            return replyChannel, xor(msg, config.authKey)
         end
     end
 end
+
+-- Handle messages from clients
+local function handleClientMessages()
+    while true do
+        local event, side, channel, replyChannel, msg, dist = os.pullEvent("modem_message")
+        if channel == BROADCAST_CHANNEL then
+            print("Received message: " .. msg)
+            -- Respond to the client
+            local response = "Hello from the server!"
+            send(replyChannel, response)
+        end
+    end
+end
+
+-- Send message to a target
+local function send(toId, payload)
+    local msg = xor(payload, config.authKey)
+    modem.transmit(toId, os.getComputerID(), msg)
+end
+
+-- Main server loop
+local function main()
+    print("Server is running...")
+    handleClientMessages()
+end
+
+main()
