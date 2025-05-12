@@ -1,5 +1,6 @@
 -- installer.lua
 
+-- Helper function to download a file from the URL to the destination path
 local function wget(url, dest)
     print("Downloading: " .. url)
     local result = shell.run("wget", url, dest)
@@ -11,6 +12,7 @@ local function wget(url, dest)
     return true
 end
 
+-- Function to read the manifest and install files
 local function installFromRepo(baseUrl)
     -- Manifest file location
     local manifestUrl = baseUrl .. "manifest.txt"
@@ -22,13 +24,19 @@ local function installFromRepo(baseUrl)
         return false
     end
 
-    -- Read the manifest and install each file listed
+    -- Read and process the manifest to get file paths
     local file = fs.open(tempManifest, "r")
     local lines = {}
+    if not file then
+        print("Error: Manifest file is missing or corrupted.")
+        fs.delete(tempManifest)
+        return false
+    end
 
-    -- Process the manifest and extract file names
+    -- Process the manifest and extract file paths
     for line in file.readLine do
-        if line ~= "" and not line:match("^#") then
+        line = line:match("^%s*(.-)%s*$") -- Trim spaces
+        if line ~= "" and not line:match("^#") then  -- Skip empty or commented lines
             table.insert(lines, line)
         end
     end
@@ -66,7 +74,25 @@ local function startInstallation()
     term.setTextColor(colors.white)
     print("\nStarting installation...")
 
-    -- Run the installation from the repository
+    -- Install client and server files (ensure these files are in your repository)
+    local clientFile = "client.lua"
+    local serverFile = "server.lua"
+
+    -- Install client file
+    print("\nInstalling client.lua...")
+    if not wget(baseRepoUrl .. clientFile, clientFile) then
+        print("Error: Could not download " .. clientFile)
+        return
+    end
+
+    -- Install server file
+    print("\nInstalling server.lua...")
+    if not wget(baseRepoUrl .. serverFile, serverFile) then
+        print("Error: Could not download " .. serverFile)
+        return
+    end
+
+    -- Proceed with the generic file installation (using manifest.txt)
     if not installFromRepo(baseRepoUrl) then
         print("Installation failed! Please check the error above.")
         return
