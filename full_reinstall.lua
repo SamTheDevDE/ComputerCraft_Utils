@@ -8,6 +8,7 @@ local function deleteAllExceptSelfAndRom(selfName)
         if fs.isDir(path) then
             local items = fs.list(path)
             for _, item in ipairs(items) do
+                if item == "/rom" then return end
                 recursiveDelete(fs.combine(path, item))
             end
         end
