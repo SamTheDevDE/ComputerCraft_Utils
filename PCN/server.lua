@@ -1,72 +1,44 @@
 -- server.lua
+
 local modem = peripheral.find("modem")
 if not modem then
     error("No modem found.")
 end
 
+modem.open(100) -- Listening on channel 100
 local BROADCAST_CHANNEL = 100
-modem.open(BROADCAST_CHANNEL) -- Open broadcast channel
+local clients = {}
 
-local config = {}
-if fs.exists("config.cfg") then
-    for line in io.lines("config.cfg") do
-        local key, value = line:match("([^=]+)=([^=]+)")
-        if key and value then
-            config[key] = value
-        end
-    end
-else
-    error("Missing config.cfg")
+-- Function to handle received messages
+local function handleMessage(message, senderID)
+    print("Received message from " .. senderID .. ": " .. message)
+    
+    -- Send an acknowledgment to the sender
+    modem.transmit(senderID, os.getComputerID(), "Message received: " .. message)
 end
 
--- Util: XOR encryption
-local function xor(str, key)
-    local out = {}
-    for i = 1, #str do
-        local char = str:byte(i)
-        local k = key:byte((i - 1) % #key + 1)
-        out[i] = string.char(bit.bxor(char, k))
-    end
-    return table.concat(out)
-end
-
--- Receive message with timeout
-local function receive(timeout)
-    local startTime = os.clock()
-    while true do
-        local event, side, channel, replyChannel, msg, dist = os.pullEvent("modem_message")
-        if os.clock() - startTime > timeout then
-            return nil, nil  -- Timeout reached
-        end
-        if channel == os.getComputerID() then
-            return replyChannel, xor(msg, config.authKey)
-        end
-    end
-end
-
--- Handle messages from clients
-local function handleClientMessages()
-    while true do
-        local event, side, channel, replyChannel, msg, dist = os.pullEvent("modem_message")
-        if channel == BROADCAST_CHANNEL then
-            print("Received message: " .. msg)
-            -- Respond to the client
-            local response = "Hello from the server!"
-            send(replyChannel, response)
-        end
-    end
-end
-
--- Send message to a target
-local function send(toId, payload)
-    local msg = xor(payload, config.authKey)
-    modem.transmit(toId, os.getComputerID(), msg)
+-- Set up the monitor (if available)
+local monitor = peripheral.find("monitor")
+if monitor then
+    monitor.clear()
+    monitor.setTextColor(colors.white)
+    monitor.setCursorPos(1, 1)
+    monitor.write("Server Started!")
 end
 
 -- Main server loop
-local function main()
-    print("Server is running...")
-    handleClientMessages()
+while true do
+    local event, side, channel, replyChannel, message, distance = os.pullEvent("modem_message")
+    
+    if channel == BROADCAST_CHANNEL then
+        -- Handle the incoming message
+        handleMessage(message, replyChannel)
+        
+        -- Display message on the monitor (if available)
+        if monitor then
+            monitor.clear()
+            monitor.setCursorPos(1, 1)
+            monitor.write("Received from " .. replyChannel .. ": " .. message)
+        end
+    end
 end
-
-main()
