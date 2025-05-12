@@ -1,3 +1,4 @@
-/onfigurator.lua
-/cn_net.lua
-/anifest.txt
+/configurator.lua
+/pcn_net.lua
+/pcn_update.lua
+/manifest.txt
