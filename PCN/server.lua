@@ -1,66 +1,69 @@
 -- server.lua
 
--- Load config
-if not fs.exists("server_config") then
-    print("Missing server_config file. Run server_installer.lua first.")
-    return
+-- Function to center text on the screen
+local function centerPrint(text, y)
+    local w, h = term.getSize()
+    term.setCursorPos(math.floor((w - #text) / 2) + 1, y)
+    print(text)
 end
 
-local file = fs.open("server_config", "r")
-local config = textutils.unserialize(file.readAll())
-file.close()
-
-local encryption = require("shared.encryption")
-
--- Open modem
-local modemSide = "back" -- Change if needed
-if not peripheral.isPresent(modemSide) then
-    print("Modem not found on side: " .. modemSide)
-    return
+-- Function to check if a monitor is attached
+local function getMonitor()
+    local monitor = peripheral.find("monitor")
+    return monitor
 end
 
-rednet.open(modemSide)
-print("Server ID: " .. config.id)
-print("Waiting for client messages...")
+-- Server Info Variables
+local serverID = "server001"  -- Unique server ID
+local clientCount = 0
+local messageCount = 0
+local uptimeStart = os.time()
 
-local connectedClients = {}
-
-while true do
-    local senderID, message = rednet.receive()
-
-    local success, data = pcall(textutils.unserialize, message)
-    if not success or type(data) ~= "table" then
-        print("Invalid message from ID " .. senderID)
-        goto continue
+-- Function to update the info page
+local function updateInfoPage()
+    local monitor = getMonitor()
+    if monitor then
+        monitor.clear()
+        monitor.setTextColor(colors.white)
+        monitor.setBackgroundColor(colors.black)
+        monitor.setCursorPos(1, 1)
+    else
+        term.clear()
+        term.setTextColor(colors.white)
+        term.setBackgroundColor(colors.black)
     end
 
-    -- Authenticate the message
-    if data.password ~= config.password then
-        print("Auth failed from ID " .. senderID)
-        rednet.send(senderID, textutils.serialize({ error = "Auth failed" }))
-        goto continue
+    -- Display general server information
+    centerPrint("=== Server Info ===", 2)
+    print("Server ID: " .. serverID)
+    print("Clients connected: " .. clientCount)
+    print("Messages sent: " .. messageCount)
+    print("Uptime: " .. os.date("%X", os.time() - uptimeStart))
+
+    if monitor then
+        monitor.setCursorPos(1, 7)
+        monitor.write("Press 'Q' to exit.")
+    else
+        print("Press 'Q' to exit.")
     end
-
-    -- Decrypt message
-    local decryptedText = encryption.xor(data.payload, config.authKey)
-    print("[" .. data.from .. " ➜ Everyone]: " .. decryptedText)
-
-    -- Add the sender to the list of connected clients
-    if not connectedClients[senderID] then
-        connectedClients[senderID] = true
-        print("Client ID " .. senderID .. " connected.")
-    end
-
-    -- Broadcast the message to all connected clients
-    for clientID, _ in pairs(connectedClients) do
-        if clientID ~= senderID then -- Don't send to the sender
-            local forwardPayload = {
-                from = data.from,
-                text = decryptedText
-            }
-            rednet.send(clientID, textutils.serialize(forwardPayload))
-        end
-    end
-
-    ::continue::
 end
+
+-- Function to handle client connections and messages
+local function handleConnections()
+    -- Simulate client connections and messages
+    while true do
+        -- Wait for a message (this could be from RedNet or another system, depending on your communication method)
+        -- In this example, it's just a simulation
+        sleep(1)
+        messageCount = messageCount + 1  -- Increment message count
+        clientCount = math.random(1, 5)  -- Random client count for demo
+        updateInfoPage()  -- Update the info page with new statistics
+    end
+end
+
+-- Main server loop
+term.clear()
+centerPrint("=== PCN Server ===", 2)
+
+-- Start handling connections and updating the info page
+handleConnections()

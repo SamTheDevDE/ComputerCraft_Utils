@@ -2,7 +2,7 @@
 
 -- Load config
 if not fs.exists("client_config") then
-    print("Missing client_config file. Run client_installer.lua first.")
+    print("Missing client_config file. Run the installer first.")
     return
 end
 
@@ -19,7 +19,8 @@ if not peripheral.isPresent(modemSide) then
     return
 end
 
-rednet.open(modemSide)
+local modem = peripheral.wrap(modemSide)
+modem.open(config.port)  -- Open the specific port to listen for messages
 
 -- GUI loop
 local function drawUI()
@@ -34,8 +35,8 @@ end
 
 local function receiveMessages()
     while true do
-        local senderID, raw = rednet.receive()
-        local data = textutils.unserialize(raw)
+        local _, message, senderID, _ = os.pullEvent("modem_message")
+        local data = textutils.unserialize(message)
         if type(data) == "table" and data.from and data.text then
             print()
             print("[" .. data.from .. "]: " .. data.text)
@@ -56,11 +57,11 @@ local function sendMessages()
             local encrypted = encryption.xor(msg, config.authKey)
             local packet = {
                 from = config.id,
-                to = config.targetID, -- This can be removed if broadcasting
+                to = config.server,  -- This can be removed if broadcasting
                 password = config.password,
                 payload = encrypted
             }
-            rednet.send(config.server, textutils.serialize(packet))
+            modem.transmit(config.server, config.port, textutils.serialize(packet))
         end
     end
 end
