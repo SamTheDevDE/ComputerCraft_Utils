@@ -1,62 +1,80 @@
--- PCN Installer
-term.clear()
-term.setCursorPos(1,1)
-print("=== PCN Installer ===")
-write("Install as server or client? (s/c): ")
-local mode = read()
+-- installer.lua
 
-local baseURL = "https://raw.githubusercontent.com/SamTheDevDE/ComputerCraft_Utils/main/PCN/"
-local function download(file, target)
-    target = target or file
-    print("Downloading " .. target .. "...")
-    local response = http.get(baseURL .. file)
-    if response then
-        local content = response.readAll()
-        response.close()
-        local f = fs.open(target, "w")
-        f.write(content)
-        f.close()
-        print("✓ " .. target .. " installed.")
-    else
-        print("✗ Failed to download " .. file)
+local function wget(url, dest)
+    print("Downloading: " .. url)
+    local result = shell.run("wget", url, dest)
+    if not result then
+        print("Error: Failed to download " .. url)
+        return false
     end
+    print("Successfully downloaded " .. dest)
+    return true
 end
 
--- Download shared files
-download("startup.lua")
-download("pcn_update.lua")
-download("shared/encryption", "shared/encryption")
+local function installFromRepo(baseUrl)
+    -- Manifest file location
+    local manifestUrl = baseUrl .. "manifest.txt"
+    local tempManifest = "__manifest_temp.txt"
 
--- Download role-specific files
-if mode == "s" then
-    download("server.lua")
-    if not fs.exists("server_config") then
-        local f = fs.open("server_config", "w")
-        f.writeLine("server001")      -- default server ID
-        f.writeLine("authKey123")     -- default auth key
-        f.close()
+    -- Download the manifest file
+    print("Fetching manifest...")
+    if not wget(manifestUrl, tempManifest) then
+        return false
     end
-    print("✓ Server installed successfully.")
-elseif mode == "c" then
-    download("client.lua")
-    if not fs.exists("client_config") then
-        term.clear()
-        print("Creating client_config...")
-        write("Enter server ID: ")
-        local sid = read()
-        write("Enter client ID (3 digits max): ")
-        local cid = read()
-        write("Enter auth key: ")
-        local auth = read("*")
-        local f = fs.open("client_config", "w")
-        f.writeLine(sid)
-        f.writeLine(cid)
-        f.writeLine(auth)
-        f.close()
+
+    -- Read the manifest and install each file listed
+    local file = fs.open(tempManifest, "r")
+    local lines = {}
+
+    -- Process the manifest and extract file names
+    for line in file.readLine do
+        if line ~= "" and not line:match("^#") then
+            table.insert(lines, line)
+        end
     end
-    print("✓ Client installed successfully.")
-else
-    print("✗ Invalid mode selected.")
+    file.close()
+
+    -- Delete the temporary manifest file
+    fs.delete(tempManifest)
+
+    -- Start installing files
+    for _, filePath in ipairs(lines) do
+        local fileName = filePath:match("([^/]+)$")  -- Extract file name from path
+        print("Installing " .. fileName)
+        if not wget(baseUrl .. filePath, fileName) then
+            print("Error: Could not download " .. fileName)
+            return false
+        end
+    end
+
+    print("Installation complete!")
+    return true
 end
 
-print("\nReboot to launch PCN.")
+-- Main Installation Logic
+local function startInstallation()
+    -- Base URL for downloading files from the repository
+    local baseRepoUrl = "https://raw.githubusercontent.com/SamTheDevDE/ComputerCraft_Utils/refs/heads/main/PCN/"
+
+    -- Display a welcome message and clear the screen
+    term.clear()
+    term.setCursorPos(1, 1)
+    term.setTextColor(colors.cyan)
+    print("╔════════════════════════════════════╗")
+    print("║          🛠️ PCN Installer          ║")
+    print("╚════════════════════════════════════╝")
+    term.setTextColor(colors.white)
+    print("\nStarting installation...")
+
+    -- Run the installation from the repository
+    if not installFromRepo(baseRepoUrl) then
+        print("Installation failed! Please check the error above.")
+        return
+    end
+
+    -- Installation complete message
+    print("All files have been successfully installed.")
+end
+
+-- Run the installer
+startInstallation()
