@@ -72,15 +72,24 @@ function monitor.writeWrapped(mon, x, y, text, color)
     end
 end
 
--- Draws a filled box (rectangle)
-function monitor.drawBox(mon, x, y, w, h, bg)
+-- Draws a filled box (rectangle), optionally leaving a 1-char border for use with drawBorder
+function monitor.drawBox(mon, x, y, w, h, bg, inner)
     bg = bg or colors.gray
+    local prevBg = mon.getBackgroundColor and mon.getBackgroundColor() or colors.black
     mon.setBackgroundColor(bg)
-    for i = 0, h - 1 do
-        mon.setCursorPos(x, y + i)
-        mon.write(string.rep(" ", w))
+    local startX, endX = x, x + w - 1
+    local startY, endY = y, y + h - 1
+    if inner then
+        startX = startX + 1
+        endX = endX - 1
+        startY = startY + 1
+        endY = endY - 1
     end
-    mon.setBackgroundColor(colors.black)
+    for j = startY, endY do
+        mon.setCursorPos(startX, j)
+        mon.write(string.rep(" ", math.max(0, endX - startX + 1)))
+    end
+    mon.setBackgroundColor(prevBg)
 end
 
 -- Draws a border box
