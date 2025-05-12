@@ -1,6 +1,6 @@
 -- installer.lua
 
-local GITHUB = "https://raw.githubusercontent.com/SamTheDevDE/ComputerCraft_Utils/main/"
+local GITHUB = "https://raw.githubusercontent.com/SamTheDevDE/ComputerCraft_Utils/main/PCN/"
 
 local function centerPrint(text, y)
     local w, _ = term.getSize()
