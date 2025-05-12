@@ -8,7 +8,7 @@ print("ChatBot is running...")
 
 -- Main loop
 while true do
-  local event, username, message, uuid = os.pullEvent("chat")
+  local event, username, message, uuid = os.pullEvent("chat_message")
   
   -- Debug print
   print("[" .. username .. "]: " .. message)
