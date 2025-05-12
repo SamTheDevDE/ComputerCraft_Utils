@@ -46,20 +46,13 @@ function monitor.writeAt(mon, x, y, text, color)
     mon.setTextColor(colors.white)
 end
 
--- Writes centered text on a given line
-function monitor.writeCentered(mon, y, text, color)
-    local w = select(1, mon.getSize())
-    local x = math.floor((w - #text) / 2) + 1
-    monitor.writeAt(mon, x, y, text, color)
-end
-
--- Writes text with wrapping, starting at (x, y)
-function monitor.writeWrapped(mon, x, y, text, color)
+function monitor.writeWrapped(mon, x, y, text, color, bg)
     local w = select(1, mon.getSize())
     local line = ""
     local cx, cy = x, y
     for word in text:gmatch("%S+") do
         if #line + #word + 1 > w - x + 1 then
+            if bg then mon.setBackgroundColor(bg) end
             monitor.writeAt(mon, cx, cy, line, color)
             cy = cy + 1
             line = word .. " "
@@ -68,8 +61,10 @@ function monitor.writeWrapped(mon, x, y, text, color)
         end
     end
     if #line > 0 then
+        if bg then mon.setBackgroundColor(bg) end
         monitor.writeAt(mon, cx, cy, line, color)
     end
+    if bg then mon.setBackgroundColor(colors.black) end
 end
 
 -- Draws a filled box (rectangle), optionally leaving a 1-char border for use with drawBorder
