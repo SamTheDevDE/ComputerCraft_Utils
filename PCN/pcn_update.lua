@@ -1,6 +1,6 @@
 -- pcn_update.lua
 
--- Helper function to download a file from the URL to the destination path
+-- Helper function to download a file from the URL to the destination path with progress
 local function wget(url, dest, fileName)
     -- Create a progress bar
     term.setCursorPos(1, term.getSize() - 1)
@@ -11,11 +11,13 @@ local function wget(url, dest, fileName)
 
     -- Run wget command
     local result = shell.run("wget", url, dest)
-    if not result then
+    if result then
+        print("Download successful: " .. fileName)
+        return true
+    else
         print("Error: Failed to download " .. fileName)
         return false
     end
-    return true
 end
 
 -- Function to get the current version from the version.txt file
@@ -101,7 +103,7 @@ local function updatePCNFiles(baseUrl, currentVersion)
             return false
         end
 
-        ::continue::
+        ::continue::  -- Skip to the next file if current is skipped
     end
 
     -- Update the local version.txt file
@@ -122,9 +124,9 @@ local function startUpdate()
     term.clear()
     term.setCursorPos(1, 1)
     term.setTextColor(colors.cyan)
-    print("╔════════════════════════════════════╗")
-    print("║          🛠️ PCN Update            ║")
-    print("╚════════════════════════════════════╝")
+    print("====================================")
+    print("|         PCN Update              |")
+    print("====================================")
     term.setTextColor(colors.white)
 
     -- Get current version from version.txt
