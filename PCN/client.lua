@@ -1,70 +1,49 @@
 -- client.lua
 
--- Load config
-if not fs.exists("client_config") then
-    print("Missing client_config file. Run the installer first.")
-    return
-end
+local config = {}
 
-local file = fs.open("client_config", "r")
-local config = textutils.unserialize(file.readAll())
-file.close()
+-- Load client configuration (client_config)
+local function loadClientConfig()
+    if fs.exists("client_config") then
+        local file = fs.open("client_config", "r")
+        config.serverID = file.readLine()
+        config.clientID = file.readLine()
+        config.authKey = file.readLine()
+        file.close()
+    else
+        print("No client_config found. Creating a new one.")
 
-local encryption = require("shared.encryption")
+        term.clear()
+        term.setCursorPos(1,1)
+        write("Enter server ID: ")
+        config.serverID = read()
 
--- Open modem
-local modemSide = "back"
-if not peripheral.isPresent(modemSide) then
-    print("Modem not found on side: " .. modemSide)
-    return
-end
+        write("Enter your client ID (3 digits max): ")
+        config.clientID = read()
 
-local modem = peripheral.wrap(modemSide)
-modem.open(config.port)  -- Open the specific port to listen for messages
+        write("Enter your authorization key: ")
+        config.authKey = read("*")  -- hide input for security
 
--- GUI loop
-local function drawUI()
-    term.clear()
-    term.setCursorPos(1, 1)
-    print("=== Private Chat Client ===")
-    print("Your ID: " .. config.id)
-    print("Talking to Server ID: " .. config.server)
-    print("To send a message, type below:")
-    print("------------------------------")
-end
-
-local function receiveMessages()
-    while true do
-        local _, message, senderID, _ = os.pullEvent("modem_message")
-        local data = textutils.unserialize(message)
-        if type(data) == "table" and data.from and data.text then
-            print()
-            print("[" .. data.from .. "]: " .. data.text)
-            write("> ")
-        elseif type(data) == "table" and data.error then
-            print()
-            print("! Server: " .. data.error)
-            write("> ")
-        end
+        local file = fs.open("client_config", "w")
+        file.writeLine(config.serverID)
+        file.writeLine(config.clientID)
+        file.writeLine(config.authKey)
+        file.close()
     end
 end
 
-local function sendMessages()
-    while true do
-        write("> ")
-        local msg = read()
-        if #msg > 0 then
-            local encrypted = encryption.xor(msg, config.authKey)
-            local packet = {
-                from = config.id,
-                to = config.server,  -- This can be removed if broadcasting
-                password = config.password,
-                payload = encrypted
-            }
-            modem.transmit(config.server, config.port, textutils.serialize(packet))
-        end
-    end
+-- Attempt to authenticate with server (stub)
+local function authenticate()
+    -- You would normally send this to the server
+    print("Authenticating as client " .. config.clientID .. " to server " .. config.serverID .. "...")
+    sleep(1)
+    -- Simulated success
+    print("Authentication successful.")
 end
 
-drawUI()
-parallel.waitForAny(receiveMessages, sendMessages)
+-- Main
+loadClientConfig()
+authenticate()
+
+-- Now client is ready to send messages
+print("Ready to chat.")

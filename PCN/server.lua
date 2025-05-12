@@ -1,69 +1,97 @@
 -- server.lua
 
--- Function to center text on the screen
-local function centerPrint(text, y)
-    local w, h = term.getSize()
-    term.setCursorPos(math.floor((w - #text) / 2) + 1, y)
-    print(text)
+local authorizedClients = {}  -- Table to store authorized clients
+local messageCount = 0
+local clientCount = 0
+local uptimeStart = os.time()
+local serverID
+local authKey
+
+-- Load server configuration (server_config)
+local function loadServerConfig()
+    if fs.exists("server_config") then
+        local file = fs.open("server_config", "r")
+        serverID = file.readLine()  -- Read serverID from config
+        authKey = file.readLine()   -- Read authorization key from config
+        file.close()
+    else
+        -- If no config, create it
+        local file = fs.open("server_config", "w")
+        file.writeLine("server001")  -- Default server ID
+        file.writeLine("authKey123")  -- Default authorization key
+        file.close()
+    end
 end
 
--- Function to check if a monitor is attached
+-- Function to check if a monitor is connected
 local function getMonitor()
     local monitor = peripheral.find("monitor")
     return monitor
 end
 
--- Server Info Variables
-local serverID = "server001"  -- Unique server ID
-local clientCount = 0
-local messageCount = 0
-local uptimeStart = os.time()
+-- Function to authenticate a client using an authorization key
+local function authenticate(clientID, key)
+    if key == authKey then
+        authorizedClients[clientID] = true
+        return true
+    end
+    return false
+end
 
--- Function to update the info page
-local function updateInfoPage()
-    local monitor = getMonitor()
+-- Function to process incoming messages
+local function handleMessage(clientID, message)
+    -- Only accept messages from authenticated clients
+    if authorizedClients[clientID] then
+        messageCount = messageCount + 1
+        -- Process the message (e.g., broadcast to others)
+        print("Message from " .. clientID .. ": " .. message)
+    else
+        print("Unauthorized message from " .. clientID)
+    end
+end
+
+-- Function to display server info on the monitor
+local function displayServerInfo(monitor)
     if monitor then
         monitor.clear()
         monitor.setTextColor(colors.white)
         monitor.setBackgroundColor(colors.black)
         monitor.setCursorPos(1, 1)
+        monitor.write("=== Server Info ===")
+        monitor.setCursorPos(1, 3)
+        monitor.write("Server ID: " .. serverID)
+        monitor.setCursorPos(1, 4)
+        monitor.write("Clients connected: " .. clientCount)
+        monitor.setCursorPos(1, 5)
+        monitor.write("Messages sent: " .. messageCount)
+        monitor.setCursorPos(1, 6)
+        monitor.write("Uptime: " .. os.date("%X", os.time() - uptimeStart))
     else
         term.clear()
         term.setTextColor(colors.white)
         term.setBackgroundColor(colors.black)
-    end
-
-    -- Display general server information
-    centerPrint("=== Server Info ===", 2)
-    print("Server ID: " .. serverID)
-    print("Clients connected: " .. clientCount)
-    print("Messages sent: " .. messageCount)
-    print("Uptime: " .. os.date("%X", os.time() - uptimeStart))
-
-    if monitor then
-        monitor.setCursorPos(1, 7)
-        monitor.write("Press 'Q' to exit.")
-    else
-        print("Press 'Q' to exit.")
+        print("=== Server Info ===")
+        print("Server ID: " .. serverID)
+        print("Clients connected: " .. clientCount)
+        print("Messages sent: " .. messageCount)
+        print("Uptime: " .. os.date("%X", os.time() - uptimeStart))
     end
 end
 
--- Function to handle client connections and messages
-local function handleConnections()
-    -- Simulate client connections and messages
+-- Function to simulate incoming client connections
+local function listenForClients()
+    -- Simulating a simple connection loop
     while true do
-        -- Wait for a message (this could be from RedNet or another system, depending on your communication method)
-        -- In this example, it's just a simulation
         sleep(1)
-        messageCount = messageCount + 1  -- Increment message count
-        clientCount = math.random(1, 5)  -- Random client count for demo
-        updateInfoPage()  -- Update the info page with new statistics
+        clientCount = math.random(1, 5)  -- Simulating client count for demo
+        handleMessage("client001", "Hello, Server!")  -- Simulated client message
+        local monitor = getMonitor()
+        displayServerInfo(monitor)  -- Update the server info display
     end
 end
+
+-- Load server configuration
+loadServerConfig()
 
 -- Main server loop
-term.clear()
-centerPrint("=== PCN Server ===", 2)
-
--- Start handling connections and updating the info page
-handleConnections()
+listenForClients()
