@@ -1,5 +1,9 @@
 {
-    "Lua.diagnostics.globals": [
-        "xorEncrypt"
-    ]
+  "Lua.workspace.library": [
+    "${workspaceFolder}/shared"
+  ],
+  "Lua.runtime.path": [
+    "?.lua",
+    "shared/?.lua"
+  ]
 }
