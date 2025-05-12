@@ -32,6 +32,20 @@ local function getCurrentVersion()
     return version
 end
 
+-- Helper function to delete all files except the `rom/` directory and `config.cfg`
+local function deleteFilesExceptConfig()
+    for _, file in ipairs(fs.list()) do
+        -- Skip deleting rom/ directory and config.cfg file
+        if file ~= "config.cfg" and file ~= "rom" then
+            if fs.isDir(file) then
+                fs.delete(file)  -- Delete directory and contents
+            else
+                fs.delete(file)  -- Delete the file
+            end
+        end
+    end
+end
+
 -- Function to update PCN files based on repository
 local function updatePCNFiles(baseUrl, currentVersion)
     -- Fetch the manifest and version from the server
@@ -59,6 +73,10 @@ local function updatePCNFiles(baseUrl, currentVersion)
 
     -- Inform the user about the update
     print("New update available! Current version: " .. currentVersion .. " -> New version: " .. remoteVersion)
+
+    -- Delete all files except for rom/ and config.cfg
+    deleteFilesExceptConfig()
+    print("Deleted old files, preparing to update...")
 
     -- Download the manifest file
     print("Fetching manifest...")
