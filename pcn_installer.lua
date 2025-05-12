@@ -1,45 +1,43 @@
-local function download(url, dest)
+local function wget(url, dest)
     print("Downloading: " .. dest)
-    local response = http.get(url)
-    if response then
-        local content = response.readAll()
-        response.close()
-        local file = fs.open(dest, "w")
-        file.write(content)
-        file.close()
-        print("Saved: " .. dest)
-    else
+    local result = shell.run("wget", url, dest)
+    if not result then
         print("Failed to download: " .. url)
     end
 end
 
 local function installFromRepo(baseUrl)
     local manifestUrl = baseUrl .. "manifest.txt"
-    local response = http.get(manifestUrl)
-    if not response then
+    local tempManifest = "__manifest_temp.txt"
+
+    -- Download manifest
+    if not shell.run("wget", manifestUrl, tempManifest) then
         print("Failed to download manifest.")
         return
     end
 
-    local manifest = response.readAll()
-    response.close()
+    -- Read and process manifest
+    local file = fs.open(tempManifest, "r")
+    local lines = {}
+    for line in file.readLine do
+        table.insert(lines, line)
+    end
+    file.close()
+    fs.delete(tempManifest)
 
-    for line in string.gmatch(manifest, "[^\r\n]+") do
-        if line ~= "" and not string.match(line, "^#") then -- allow comments
-            local fileUrl = baseUrl .. line
-            download(fileUrl, line)
+    -- Download each listed file
+    for _, line in ipairs(lines) do
+        if line ~= "" and not line:match("^#") then
+            wget(baseUrl .. line, line)
         end
     end
 
     print("Installation complete.")
 end
 
--- EDIT THIS LINE with your base repo path
--- Example: "https://raw.githubusercontent.com/YourName/Repo/main/"
+
+-- 🔧 EDIT THIS URL to your repo's raw base path
 local baseRepoUrl = "https://github.com/SamTheDevDE/ComputerCraft_Utils/raw/refs/heads/main/"
 
-if not http then
-    print("HTTP API not enabled. Please run with HTTP API support.")
-else
-    installFromRepo(baseRepoUrl)
-end
+-- 🔄 Install everything
+installFromRepo(baseRepoUrl)
