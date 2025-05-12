@@ -10,7 +10,7 @@ local file = fs.open("server_config", "r")
 local config = textutils.unserialize(file.readAll())
 file.close()
 
-local encryption = require("encryption")
+local encryption = require("shared.encryption")
 
 -- Open modem
 local modemSide = "back" -- Change if needed
@@ -23,6 +23,8 @@ rednet.open(modemSide)
 print("Server ID: " .. config.id)
 print("Waiting for client messages...")
 
+local connectedClients = {}
+
 while true do
     local senderID, message = rednet.receive()
 
@@ -32,13 +34,7 @@ while true do
         goto continue
     end
 
-    -- Required fields
-    if not data.from or not data.to or not data.password or not data.payload then
-        print("Malformed message from ID " .. senderID)
-        goto continue
-    end
-
-    -- Authenticate
+    -- Authenticate the message
     if data.password ~= config.password then
         print("Auth failed from ID " .. senderID)
         rednet.send(senderID, textutils.serialize({ error = "Auth failed" }))
@@ -47,14 +43,24 @@ while true do
 
     -- Decrypt message
     local decryptedText = encryption.xor(data.payload, config.authKey)
-    print("[" .. data.from .. " ➜ " .. data.to .. "]: " .. decryptedText)
+    print("[" .. data.from .. " ➜ Everyone]: " .. decryptedText)
 
-    -- Forward
-    local forwardPayload = {
-        from = data.from,
-        text = decryptedText
-    }
-    rednet.send(data.to, textutils.serialize(forwardPayload))
+    -- Add the sender to the list of connected clients
+    if not connectedClients[senderID] then
+        connectedClients[senderID] = true
+        print("Client ID " .. senderID .. " connected.")
+    end
+
+    -- Broadcast the message to all connected clients
+    for clientID, _ in pairs(connectedClients) do
+        if clientID ~= senderID then -- Don't send to the sender
+            local forwardPayload = {
+                from = data.from,
+                text = decryptedText
+            }
+            rednet.send(clientID, textutils.serialize(forwardPayload))
+        end
+    end
 
     ::continue::
 end

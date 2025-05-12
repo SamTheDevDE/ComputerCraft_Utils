@@ -10,7 +10,7 @@ local file = fs.open("client_config", "r")
 local config = textutils.unserialize(file.readAll())
 file.close()
 
-local encryption = require("encryption")
+local encryption = require("shared.encryption")
 
 -- Open modem
 local modemSide = "back"
@@ -56,7 +56,7 @@ local function sendMessages()
             local encrypted = encryption.xor(msg, config.authKey)
             local packet = {
                 from = config.id,
-                to = config.targetID,
+                to = config.targetID, -- This can be removed if broadcasting
                 password = config.password,
                 payload = encrypted
             }
