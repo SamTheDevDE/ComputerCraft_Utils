@@ -3,8 +3,8 @@ if not modem then
     error("No modem found.")
 end
 
-modem.open(os.getComputerID()) -- Open unique reply channel
-local BROADCAST_CHANNEL = 100 -- All devices listen here
+modem.open(os.getComputerID())  -- Open unique reply channel
+local BROADCAST_CHANNEL = 100  -- All devices listen here
 
 local config = {}
 if fs.exists("config.cfg") then
@@ -43,18 +43,14 @@ end
 
 -- Receive message with timeout
 local function receive(timeout)
-    local startTime = os.clock()
-    while true do
-        local event, side, channel, replyChannel, msg, dist = os.pullEvent("modem_message")
-        if os.clock() - startTime > timeout then
-            return nil, nil  -- Timeout reached
-        end
-        if channel == os.getComputerID() then
-            return replyChannel, xor(msg, config.authKey)
-        end
+    local event, side, channel, replyChannel, msg, dist = os.pullEventTimeout("modem_message", timeout)
+    if event and channel == os.getComputerID() then
+        return replyChannel, xor(msg, config.authKey)
     end
+    return nil, nil
 end
 
+-- Return functions
 return {
     send = send,
     receive = receive,
