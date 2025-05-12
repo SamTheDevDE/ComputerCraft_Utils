@@ -101,33 +101,18 @@ function monitor.drawBox(mon, x, y, w, h, bg, inner, colorOnly)
     end
     mon.setBackgroundColor(prevBg)
 end
-
--- Draws a border box
-function monitor.drawBorder(mon, x, y, w, h, color)
-    color = color or colors.white
-    mon.setTextColor(color)
-    -- Top and bottom
-    mon.setCursorPos(x, y)
-    mon.write(("─"):rep(w))
-    mon.setCursorPos(x, y + h - 1)
-    mon.write(("─"):rep(w))
-    -- Sides
-    for i = 1, h - 2 do
-        mon.setCursorPos(x, y + i)
-        mon.write("│")
-        mon.setCursorPos(x + w - 1, y + i)
-        mon.write("│")
+-- Returns how many lines the wrapped text will take on the monitor, given width
+function monitor.getWrappedHeight(text, width)
+    local line, lines = "", 1
+    for word in text:gmatch("%S+") do
+        if #line + #word + 1 > width then
+            lines = lines + 1
+            line = word .. " "
+        else
+            line = line .. word .. " "
+        end
     end
-    -- Corners
-    mon.setCursorPos(x, y)
-    mon.write("┌")
-    mon.setCursorPos(x + w - 1, y)
-    mon.write("┐")
-    mon.setCursorPos(x, y + h - 1)
-    mon.write("└")
-    mon.setCursorPos(x + w - 1, y + h - 1)
-    mon.write("┘")
-    mon.setTextColor(colors.white)
+    return lines
 end
 
 return monitor
