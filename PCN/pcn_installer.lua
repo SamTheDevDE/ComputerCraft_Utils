@@ -74,23 +74,46 @@ local function startInstallation()
     term.setTextColor(colors.white)
     print("\nStarting installation...")
 
-    -- Install client and server files (ensure these files are in your repository)
-    local clientFile = "client.lua"
-    local serverFile = "server.lua"
+    -- Prompt user to choose between client or server
+    local choice
+    repeat
+        print("\nPlease choose which file to install:")
+        print("1. Install client.lua")
+        print("2. Install server.lua")
+        print("3. Install both (client.lua & server.lua)")
+        print("4. Cancel")
 
-    -- Install client file
-    print("\nInstalling client.lua...")
-    if not wget(baseRepoUrl .. clientFile, clientFile) then
-        print("Error: Could not download " .. clientFile)
-        return
-    end
+        choice = tonumber(read())
 
-    -- Install server file
-    print("\nInstalling server.lua...")
-    if not wget(baseRepoUrl .. serverFile, serverFile) then
-        print("Error: Could not download " .. serverFile)
-        return
-    end
+        if choice == 1 then
+            print("You chose to install client.lua.")
+            if not wget(baseRepoUrl .. "client.lua", "client.lua") then
+                print("Error: Could not download client.lua")
+                return
+            end
+        elseif choice == 2 then
+            print("You chose to install server.lua.")
+            if not wget(baseRepoUrl .. "server.lua", "server.lua") then
+                print("Error: Could not download server.lua")
+                return
+            end
+        elseif choice == 3 then
+            print("You chose to install both client.lua and server.lua.")
+            if not wget(baseRepoUrl .. "client.lua", "client.lua") then
+                print("Error: Could not download client.lua")
+                return
+            end
+            if not wget(baseRepoUrl .. "server.lua", "server.lua") then
+                print("Error: Could not download server.lua")
+                return
+            end
+        elseif choice == 4 then
+            print("Installation canceled.")
+            return
+        else
+            print("Invalid choice. Please select a valid option (1-4).")
+        end
+    until choice >= 1 and choice <= 4
 
     -- Proceed with the generic file installation (using manifest.txt)
     if not installFromRepo(baseRepoUrl) then
