@@ -1,24 +1,21 @@
--- Wrap the chat box peripheral
-local chat = peripheral.find("chatBox")
-if not chat then
-  error("No Chat Box connected!")
-end
+local chatBox = peripheral.find("chatBox")
 
--- Announce that the chatbot is listening
-chat.sendMessage("Chatbot is now listening to the chat!")
+local message = {
+    {text = "Click "}, 
+    {
+        text = "here",
+        underlined = true,
+        color = "aqua",
+        clickEvent = {
+            action = "open_url",
+            value = "https://advancedperipherals.madefor.cc/"
+        }
+    },
+    {text = " for the AP "},
+    {text = "documentation", color = "red"},
+    {text = "!"}
+}
 
--- Main loop to listen for chat messages
-while true do
-  local event, username, message, uuid = os.pullEvent("chat_message")
-  
-  -- Debug print (optional)
-  print("[" .. username .. "]: " .. message)
-  
-  -- Command handler for !test
-  if message == "!test" then
-    chat.sendMessage("Hello, " .. username .. "! This is a test response.")
-  elseif message == "!time" then
-    local time = os.time()
-    chat.sendMessage("Current in-game time is: " .. time)
-  end
-end
+local json = textutils.serialiseJSON(message)
+
+chatBox.sendFormattedMessage(json)
