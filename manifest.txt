@@ -1,2 +1,3 @@
 pcn.lua
+startup.lua
 lib/monitor.lua
