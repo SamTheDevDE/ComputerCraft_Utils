@@ -1,6 +1,6 @@
 local function deleteAllExceptSelfAndRom(selfName)
     local function isProtected(path)
-        return path == selfName or path:sub(1, 4) == "rom/"
+        return path == selfName or path == "rom" or path:sub(1, 4) == "rom/"
     end
 
     local function recursiveDelete(path)
@@ -8,7 +8,6 @@ local function deleteAllExceptSelfAndRom(selfName)
         if fs.isDir(path) then
             local items = fs.list(path)
             for _, item in ipairs(items) do
-                if item == "/rom" then return end
                 recursiveDelete(fs.combine(path, item))
             end
         end
@@ -21,6 +20,7 @@ local function deleteAllExceptSelfAndRom(selfName)
         recursiveDelete(item)
     end
 end
+
 
 local function wget(url, dest)
     print("Downloading: " .. dest)
