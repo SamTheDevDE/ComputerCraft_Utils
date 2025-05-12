@@ -73,10 +73,10 @@ function monitor.writeWrapped(mon, x, y, text, color)
 end
 
 -- Draws a filled box (rectangle), optionally leaving a 1-char border for use with drawBorder
-function monitor.drawBox(mon, x, y, w, h, bg, inner)
+-- If colorOnly is true, only changes background color without overwriting text
+function monitor.drawBox(mon, x, y, w, h, bg, inner, colorOnly)
     bg = bg or colors.gray
     local prevBg = mon.getBackgroundColor and mon.getBackgroundColor() or colors.black
-    mon.setBackgroundColor(bg)
     local startX, endX = x, x + w - 1
     local startY, endY = y, y + h - 1
     if inner then
@@ -87,7 +87,17 @@ function monitor.drawBox(mon, x, y, w, h, bg, inner)
     end
     for j = startY, endY do
         mon.setCursorPos(startX, j)
-        mon.write(string.rep(" ", math.max(0, endX - startX + 1)))
+        if colorOnly then
+            -- Only set background color for each cell, don't overwrite text
+            for i = startX, endX do
+                mon.setCursorPos(i, j)
+                mon.setBackgroundColor(bg)
+                -- No write!
+            end
+        else
+            mon.setBackgroundColor(bg)
+            mon.write(string.rep(" ", math.max(0, endX - startX + 1)))
+        end
     end
     mon.setBackgroundColor(prevBg)
 end
