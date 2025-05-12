@@ -1,4 +1,5 @@
 /configurator.lua
 /pcn_net.lua
 /pcn_update.lua
+/version.txt
 /manifest.txt
