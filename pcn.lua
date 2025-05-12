@@ -1,13 +1,15 @@
-local demoText = "This is a demonstration of the monitor utility library. It supports wrapping, centering, and drawing colored boxes."
-local textWidth = 24
-local textX, textY = 4, 5
-local textBg = colors.white
+local basalt = require("basalt")
 
--- Calculate required height for the wrapped text
-local textHeight = monitor.getWrappedHeight(demoText, textWidth)
+-- Get the main frame (your window)
+local main = basalt.getMainFrame()
 
--- Draw the white box for the text area, sized to fit the text
-monitor.drawBox(mon, textX, textY, textWidth, textHeight, textBg)
+-- Add a button
+main:addButton()
+    :setText("Click me!")
+    :setPosition(4, 4)
+    :onClick(function()
+        -- Do something when clicked
+    end)
 
--- Write wrapped text with matching background
-monitor.writeWrapped(mon, textX, textY, demoText, colors.black, textBg)
+-- Start Basalt
+basalt.run()
