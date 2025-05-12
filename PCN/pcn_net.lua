@@ -1,5 +1,3 @@
--- pcn_net.lua
-
 local modem = peripheral.find("modem")
 if not modem then
     error("No modem found.")
@@ -45,11 +43,16 @@ end
 
 -- Receive message with timeout
 local function receive(timeout)
-    local event, side, channel, replyChannel, msg, dist = os.pullEventTimeout("modem_message", timeout)
-    if event and channel == os.getComputerID() then
-        return replyChannel, xor(msg, config.authKey)
+    local startTime = os.clock()
+    while true do
+        local event, side, channel, replyChannel, msg, dist = os.pullEvent("modem_message")
+        if os.clock() - startTime > timeout then
+            return nil, nil  -- Timeout reached
+        end
+        if channel == os.getComputerID() then
+            return replyChannel, xor(msg, config.authKey)
+        end
     end
-    return nil, nil
 end
 
 return {
