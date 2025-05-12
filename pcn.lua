@@ -1,15 +1,17 @@
 local basalt = require("basalt")
 
--- Get the main frame (your window)
-local main = basalt.getMainFrame()
+-- Get a reference to the monitor
+local monitor = peripheral.find("monitor") 
+-- Or specific side: peripheral.wrap("right")
 
--- Add a button
-main:addButton()
-    :setText("Click me!")
-    :setPosition(4, 4)
-    :onClick(function()
-        -- Do something when clicked
-    end)
+-- Create frame for monitor
+local monitorFrame = basalt.createFrame():setTerm(monitor) -- :setTerm is the important method here
+
+-- Add elements like normal
+monitorFrame:addButton()
+    :setText("Monitor Button")
+    :setWidth(24)
+    :setPosition(2, 2)
 
 -- Start Basalt
 basalt.run()
