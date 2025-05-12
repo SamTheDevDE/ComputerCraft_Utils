@@ -1,97 +1,102 @@
 -- server.lua
 
-local authorizedClients = {}  -- Table to store authorized clients
-local messageCount = 0
-local clientCount = 0
-local uptimeStart = os.time()
-local serverID
-local authKey
+local net = require("pcn_net")
 
--- Load server configuration (server_config)
-local function loadServerConfig()
-    if fs.exists("server_config") then
-        local file = fs.open("server_config", "r")
-        serverID = file.readLine()  -- Read serverID from config
-        authKey = file.readLine()   -- Read authorization key from config
-        file.close()
-    else
-        -- If no config, create it
-        local file = fs.open("server_config", "w")
-        file.writeLine("server001")  -- Default server ID
-        file.writeLine("authKey123")  -- Default authorization key
-        file.close()
+-- Load config
+local config = {}
+if fs.exists("config.cfg") then
+    for line in io.lines("config.cfg") do
+        local key, value = line:match("([^=]+)=([^=]+)")
+        if key and value then
+            config[key] = value
+        end
     end
+else
+    error("Missing config.cfg")
 end
 
--- Function to check if a monitor is connected
-local function getMonitor()
-    local monitor = peripheral.find("monitor")
-    return monitor
+local serverId = tonumber(config.serverId)
+local password = config.password
+local authKey = config.authKey
+
+-- Monitor detection
+local monitor = peripheral.find("monitor")
+if monitor then
+    monitor.setTextScale(0.5)
+    monitor.setBackgroundColor(colors.black)
+    monitor.clear()
+    monitor.setCursorPos(1, 1)
 end
 
--- Function to authenticate a client using an authorization key
-local function authenticate(clientID, key)
-    if key == authKey then
-        authorizedClients[clientID] = true
-        return true
-    end
-    return false
-end
-
--- Function to process incoming messages
-local function handleMessage(clientID, message)
-    -- Only accept messages from authenticated clients
-    if authorizedClients[clientID] then
-        messageCount = messageCount + 1
-        -- Process the message (e.g., broadcast to others)
-        print("Message from " .. clientID .. ": " .. message)
-    else
-        print("Unauthorized message from " .. clientID)
-    end
-end
-
--- Function to display server info on the monitor
-local function displayServerInfo(monitor)
+-- Helper to write to screen + monitor
+local function writeLog(msg, color)
+    color = color or colors.white
+    term.setTextColor(color)
+    print(msg)
     if monitor then
-        monitor.clear()
-        monitor.setTextColor(colors.white)
-        monitor.setBackgroundColor(colors.black)
+        local x, y = monitor.getCursorPos()
+        monitor.setTextColor(color)
+        monitor.write(msg)
+        monitor.setCursorPos(1, y + 1)
+    end
+    term.setTextColor(colors.white)
+end
+
+-- Draw header
+local function drawHeader()
+    term.setTextColor(colors.cyan)
+    print("╔════════════════════════════════════╗")
+    print("║     🛰️ PCN Server - Channel " .. serverId .. "      ║")
+    print("╚════════════════════════════════════╝")
+    term.setTextColor(colors.white)
+    if monitor then
+        monitor.setTextColor(colors.cyan)
         monitor.setCursorPos(1, 1)
-        monitor.write("=== Server Info ===")
-        monitor.setCursorPos(1, 3)
-        monitor.write("Server ID: " .. serverID)
+        monitor.write("╔════════════════════════════════════╗\n")
+        monitor.write("║     🛰️ PCN Server - Channel " .. serverId .. "      ║\n")
+        monitor.write("╚════════════════════════════════════╝\n")
+        monitor.setTextColor(colors.white)
         monitor.setCursorPos(1, 4)
-        monitor.write("Clients connected: " .. clientCount)
-        monitor.setCursorPos(1, 5)
-        monitor.write("Messages sent: " .. messageCount)
-        monitor.setCursorPos(1, 6)
-        monitor.write("Uptime: " .. os.date("%X", os.time() - uptimeStart))
-    else
-        term.clear()
-        term.setTextColor(colors.white)
-        term.setBackgroundColor(colors.black)
-        print("=== Server Info ===")
-        print("Server ID: " .. serverID)
-        print("Clients connected: " .. clientCount)
-        print("Messages sent: " .. messageCount)
-        print("Uptime: " .. os.date("%X", os.time() - uptimeStart))
     end
 end
 
--- Function to simulate incoming client connections
-local function listenForClients()
-    -- Simulating a simple connection loop
-    while true do
-        sleep(1)
-        clientCount = math.random(1, 5)  -- Simulating client count for demo
-        handleMessage("client001", "Hello, Server!")  -- Simulated client message
-        local monitor = getMonitor()
-        displayServerInfo(monitor)  -- Update the server info display
+-- Start
+os.setComputerLabel("PCN_Server_" .. tostring(serverId))
+drawHeader()
+writeLog("[INFO] Server started.", colors.lime)
+
+-- Client state
+local clients = {}
+
+-- Main loop
+while true do
+    local senderId, rawMsg = net.receive()
+    if senderId and rawMsg then
+        local cmd, payload = rawMsg:match("^(%S+)%s(.+)$")
+        if cmd == "AUTH" then
+            if payload == password then
+                clients[senderId] = true
+                net.send(senderId, "AUTH_OK")
+                writeLog("[AUTH] ✅ Client " .. senderId .. " authenticated.", colors.green)
+            else
+                net.send(senderId, "AUTH_FAIL")
+                writeLog("[AUTH] ❌ Client " .. senderId .. " failed auth.", colors.red)
+            end
+        elseif cmd == "MSG" then
+            if clients[senderId] then
+                writeLog("[MSG] <" .. senderId .. "> " .. payload, colors.yellow)
+                for otherId in pairs(clients) do
+                    if otherId ~= senderId then
+                        net.send(otherId, "MSG " .. senderId .. ": " .. payload)
+                    end
+                end
+            else
+                net.send(senderId, "ERROR Unauthorized")
+                writeLog("[WARN] Blocked unauthorized message from " .. senderId, colors.orange)
+            end
+        else
+            net.send(senderId, "ERROR InvalidCommand")
+            writeLog("[WARN] Unknown command from " .. senderId, colors.lightGray)
+        end
     end
 end
-
--- Load server configuration
-loadServerConfig()
-
--- Main server loop
-listenForClients()
