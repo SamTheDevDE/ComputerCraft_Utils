@@ -1,48 +1,39 @@
--- Path to the script you want to download (replace with your URL)
-local scriptUrl = "https://raw.githubusercontent.com/SamTheDevDE/ComputerCraft_Utils/refs/heads/main/example.lua"
-local scriptPath = "example.lua"  -- This is the file to store the downloaded script.
+-- URL of the script to download (replace with your desired URL)
+local scriptUrl = "https://raw.githubusercontent.com/username/repo/main/script.lua"
+local scriptPath = "downloaded_script.lua"  -- Path to save the downloaded script
 
--- Function to remove old startup script
-local function removeOldScript()
-  if fs.exists(scriptPath) then
-    fs.delete(scriptPath)
-    print("Old script removed.")
-  else
-    print("No old script found.")
-  end
-end
-
--- Function to download the new script
-local function downloadNewScript()
+-- Function to download the script
+local function downloadScript(url, path)
+  print("Downloading script...")
   local success, err = pcall(function()
-    http.request(scriptUrl)
+    http.request(url)
   end)
 
   if not success then
     print("Error with the HTTP request:", err)
-    return
+    return false
   end
 
-  -- Wait for the download to complete
+  -- Wait for the download to finish
   while true do
     local event, url, response = os.pullEvent("http_response")
     if url == scriptUrl then
       if response then
-        local file = fs.open(scriptPath, "w")
+        local file = fs.open(path, "w")
         file.write(response.readAll())
         file.close()
-        print("New script downloaded successfully!")
+        print("Script downloaded successfully.")
       else
         print("Failed to download the script.")
       end
       break
     end
   end
+  return true
 end
 
--- Run the functions
-removeOldScript()
-downloadNewScript()
-
--- Optionally, you can execute the downloaded script
--- shell.run(scriptPath)
+-- Download the script and run it
+if downloadScript(scriptUrl, scriptPath) then
+  print("Running downloaded script...")
+  shell.run(scriptPath)
+end
