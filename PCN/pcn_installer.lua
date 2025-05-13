@@ -1,106 +1,118 @@
--- PCN Installer
+-- PCN Installer Script
 
 local BASE_URL = "https://raw.githubusercontent.com/SamTheDevDE/ComputerCraft_Utils/refs/heads/main/PCN/"
 local MANIFEST_URL = BASE_URL .. "manifest.txt"
 local VERSION_URL = BASE_URL .. "version.txt"
 
+-- Optional: use monitor if connected
+local screen = term
 local monitor = peripheral.find("monitor")
-if monitor then monitor.setTextScale(0.5) end
-
-local function clear(term)
-    term.setBackgroundColor(colors.black)
-    term.setTextColor(colors.white)
-    term.clear()
-    term.setCursorPos(1, 1)
+if monitor then
+    monitor.setTextScale(0.5)
+    screen = monitor
 end
 
-local function printUI(text, color)
-    local t = monitor or term
-    t.setTextColor(color or colors.white)
-    t.write(text .. "\n")
+local function centerText(text)
+    local w, h = screen.getSize()
+    screen.setCursorPos(math.floor((w - #text) / 2) + 1, select(2, screen.getCursorPos()))
+    screen.write(text)
 end
 
-local function drawHeader()
-    local t = monitor or term
-    clear(t)
-    printUI("====================================", colors.cyan)
-    printUI("         PCN INSTALLER", colors.cyan)
-    printUI("====================================", colors.cyan)
-    printUI("")
+local function drawUI()
+    screen.setBackgroundColor(colors.black)
+    screen.setTextColor(colors.cyan)
+    screen.clear()
+    screen.setCursorPos(1, 2)
+    centerText("=== PCN Installer ===")
+    screen.setCursorPos(1, 4)
+    screen.setTextColor(colors.white)
 end
 
-local function downloadFile(path)
-    local dest = path:match("([^/]+)$")
-    if dest == "config.cfg" then
-        printUI("Skipping config file: " .. dest, colors.yellow)
-        return true
-    end
-    local url = BASE_URL .. path
-    printUI("Installing: " .. dest, colors.lime)
-    if fs.exists(dest) then fs.delete(dest) end
-    return shell.run("wget", url, dest)
+local function askRole()
+    drawUI()
+    screen.write("Do you want to install the client or server? [client/server]: ")
+    return read()
 end
 
-local function fetchManifest()
-    local tmp = "__manifest.txt"
-    if not shell.run("wget", MANIFEST_URL, tmp) then return nil end
+local function downloadFile(remotePath, localName)
+    local url = BASE_URL .. remotePath
+    screen.setTextColor(colors.lightBlue)
+    print("Downloading " .. remotePath .. " ...")
+    local success = shell.run("wget", url, localName)
+    screen.setTextColor(colors.white)
+    return success
+end
 
-    local file = fs.open(tmp, "r")
+local function getRemoteLines(url)
+    local tempFile = "__temp.txt"
+    if not shell.run("wget", url, tempFile) then return nil end
+    local file = fs.open(tempFile, "r")
     local lines = {}
     while true do
         local line = file.readLine()
         if not line then break end
-        line = line:match("^%s*(.-)%s*$")
-        if line ~= "" and not line:match("^#") then
-            table.insert(lines, line)
-        end
+        table.insert(lines, line)
     end
     file.close()
-    fs.delete(tmp)
+    fs.delete(tempFile)
     return lines
 end
 
-local function fetchVersion()
-    local tmp = "__version.txt"
-    if not shell.run("wget", VERSION_URL, tmp) then return nil end
+local function installFiles(role)
+    -- Download manifest
+    local files = getRemoteLines(MANIFEST_URL)
+    if not files then
+        print("Failed to download manifest.")
+        return false
+    end
 
-    local file = fs.open(tmp, "r")
-    local version = file.readLine()
-    file.close()
-    fs.delete(tmp)
-    return version
+    for _, file in ipairs(files) do
+        file = file:match("^%s*(.-)%s*$") -- trim
+        if file ~= "" and not file:match("^#") then
+            local fileName = file:match("([^/]+)$")
+            if fileName:match("^config") then
+                print("Skipping config file: " .. fileName)
+            elseif fileName == "client.lua" and role ~= "client" then
+                -- skip
+            elseif fileName == "server.lua" and role ~= "server" then
+                -- skip
+            else
+                if not downloadFile(file, fileName) then
+                    print("Failed to download: " .. fileName)
+                    return false
+                end
+            end
+        end
+    end
+
+    return true
 end
 
-local function writeVersion(version)
+local function installVersion()
+    local lines = getRemoteLines(VERSION_URL)
+    if not lines then
+        print("Failed to download version.txt.")
+        return
+    end
     local f = fs.open("version.txt", "w")
-    f.write(version)
+    f.write(lines[1] or "unknown")
     f.close()
 end
 
--- Main logic
-drawHeader()
-printUI("Fetching manifest...", colors.lightBlue)
-local files = fetchManifest()
-if not files then
-    printUI("Failed to fetch manifest!", colors.red)
-    return
-end
+-- Main Logic
+drawUI()
+local role
+repeat
+    role = askRole():lower()
+until role == "client" or role == "server"
 
-printUI("Fetching version...", colors.lightBlue)
-local version = fetchVersion()
-if not version then
-    printUI("Failed to fetch version!", colors.red)
-    return
-end
+drawUI()
+centerText("Installing PCN (" .. role .. ") ...")
+screen.setCursorPos(1, 6)
 
-printUI("Installing files...\n", colors.white)
-for _, path in ipairs(files) do
-    if not downloadFile(path) then
-        printUI("Failed to install: " .. path, colors.red)
-        return
-    end
+if installFiles(role) then
+    installVersion()
+    print("\nInstallation complete!")
+else
+    print("\nInstallation failed.")
 end
-
-writeVersion(version)
-printUI("\nInstallation complete!", colors.green)
-printUI("Installed version: " .. version, colors.cyan)
